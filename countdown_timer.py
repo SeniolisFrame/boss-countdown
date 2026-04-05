@@ -51,7 +51,6 @@ class CountdownRecord:
     def start_countdown(self):
         if not self.running:
             self.running = True
-            self.countdown_step()
     
     def delete_record(self):
         self.running = False
@@ -189,6 +188,19 @@ class CountdownTimerApp:
         
         # Dictionary to store level groups by level number
         self.level_groups = {}
+        
+        # Start global timer for all countdowns
+        self.update_all_timers()
+    
+    def update_all_timers(self):
+        for level_group in self.level_groups.values():
+            for record in level_group.records:
+                if record.running and record.total_seconds > -1800:
+                    record.total_seconds -= 1
+                    record.time_label.config(text=record.format_time(record.total_seconds), fg="red" if record.total_seconds < 0 else "black")
+                elif record.running:
+                    record.running = False
+        self.root.after(1000, self.update_all_timers)
     
     def create_level_group(self):
         level_str = self.new_level_entry.get()

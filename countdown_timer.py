@@ -1,6 +1,6 @@
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox
-import threading
 import time
 
 class CountdownRecord:
@@ -10,7 +10,6 @@ class CountdownRecord:
         self.channel = channel
         self.total_seconds = total_seconds
         self.running = False
-        self.thread = None
         
         # Frame for this record
         self.frame = tk.Frame(parent, bg="white", relief=tk.FLAT)
@@ -41,21 +40,18 @@ class CountdownRecord:
         secs = seconds % 60
         return f"{sign}{hours:02d}:{minutes:02d}:{secs:02d}"
     
-    def countdown(self):
-        while self.running:
-            if self.total_seconds > -1200:  # Stop at -20 minutes
-                self.total_seconds -= 1
-                self.time_label.config(text=self.format_time(self.total_seconds), fg="red" if self.total_seconds < 0 else "black")
-                time.sleep(1)
-            else:
-                self.running = False
-                break
+    def countdown_step(self):
+        if self.running and self.total_seconds > -1200:
+            self.total_seconds -= 1
+            self.time_label.config(text=self.format_time(self.total_seconds), fg="red" if self.total_seconds < 0 else "black")
+            self.level_group.app.root.after(1000, self.countdown_step)
+        else:
+            self.running = False
     
     def start_countdown(self):
         if not self.running:
             self.running = True
-            self.thread = threading.Thread(target=self.countdown, daemon=True)
-            self.thread.start()
+            self.countdown_step()
     
     def delete_record(self):
         self.running = False
@@ -95,6 +91,7 @@ class LevelGroup:
         tk.Label(self.input_frame, text="Time (HHMM):", bg="lightgray", font=("Arial", 10)).grid(row=0, column=2, padx=5)
         self.time_entry = tk.Entry(self.input_frame, width=15)
         self.time_entry.grid(row=0, column=3, padx=5)
+        self.time_entry.bind('<Return>', lambda e: self.add_record())
         
         self.add_button = tk.Button(self.input_frame, text="Add Record", command=self.add_record, bg="lightblue")
         self.add_button.grid(row=0, column=4, padx=5)
@@ -147,6 +144,7 @@ class LevelGroup:
 class CountdownTimerApp:
     def __init__(self, root):
         self.root = root
+
         self.root.state('zoomed')  # Fullscreen mode
         self.root.title("Countdown Timer - Grouped by Level")
         
@@ -185,7 +183,7 @@ class CountdownTimerApp:
         tk.Label(self.top_input_frame, text="Map-Level:", bg="lightyellow", font=("Arial", 10)).grid(row=0, column=1, padx=5)
         self.new_level_entry = tk.Entry(self.top_input_frame, width=10)
         self.new_level_entry.grid(row=0, column=2, padx=5)
-        
+        self.new_level_entry.bind('<Return>', lambda e: self.create_level_group())
         self.create_button = tk.Button(self.top_input_frame, text="Create Level", command=self.create_level_group, bg="lightgreen")
         self.create_button.grid(row=0, column=3, padx=5)
         

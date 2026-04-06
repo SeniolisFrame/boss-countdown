@@ -8,8 +8,10 @@ class CountdownRecord:
         self.parent = parent
         self.level_group = level_group
         self.channel = channel
+        self.start_seconds = total_seconds
         self.total_seconds = total_seconds
         self.running = False
+        self.start_time = None
         
         # Frame for this record
         self.frame = tk.Frame(parent, bg="white", relief=tk.FLAT)
@@ -40,17 +42,10 @@ class CountdownRecord:
         secs = seconds % 60
         return f"{sign}{hours:02d}:{minutes:02d}:{secs:02d}"
     
-    def countdown_step(self):
-        if self.running and self.total_seconds > -1200:
-            self.total_seconds -= 1
-            self.time_label.config(text=self.format_time(self.total_seconds), fg="red" if self.total_seconds < 0 else "black")
-            self.level_group.app.root.after(1000, self.countdown_step)
-        else:
-            self.running = False
-    
     def start_countdown(self):
         if not self.running:
             self.running = True
+            self.start_time = time.monotonic()
     
     def delete_record(self):
         self.running = False
@@ -193,13 +188,21 @@ class CountdownTimerApp:
         self.update_all_timers()
     
     def update_all_timers(self):
+        now = time.monotonic()
         for level_group in self.level_groups.values():
             for record in level_group.records:
-                if record.running and record.total_seconds > -1800:
-                    record.total_seconds -= 1
-                    record.time_label.config(text=record.format_time(record.total_seconds), fg="red" if record.total_seconds < 0 else "black")
-                elif record.running:
+                if not record.running:
+                    continue
+                if record.start_time is None:
+                    continue
+                elapsed = int(now - record.start_time)
+                remaining = record.start_seconds - elapsed
+                if remaining <= -1800:
+                    remaining = -1800
                     record.running = False
+                if remaining != record.total_seconds:
+                    record.total_seconds = remaining
+                    record.time_label.config(text=record.format_time(record.total_seconds), fg="red" if record.total_seconds < 0 else "black")
         self.root.after(1000, self.update_all_timers)
     
     def create_level_group(self):
